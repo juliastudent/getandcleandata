@@ -1,16 +1,20 @@
 ##function reads series of wearable technology test data
 
 ##output is data.frame which 
-##provides average measurement values per subject and activity for 
-##a subset of measurements
+##provides average time/freq measurement values per subject, activity and 
+##action and function being measured
 
 ##should be executed from directory with test/train directories
+##this should be rewritten so you pass that directory and then 
+##it won't matter, but out of time :-(  
 
 run_analysis <- function(){
       
       ##load plyr
+      library(plyr)
       library(dplyr)
       library(reshape2)
+      library(tidyr)
       
       ##read data into various data frames in prep for clipping together
       actv<-read.table("activity_labels.txt")
@@ -63,8 +67,25 @@ run_analysis <- function(){
       mean_std_melt = melt(mean_std, id = c("subject_id","activity"))
       mean_std_mean = dcast(mean_std_melt, subject_id + activity ~ variable, mean)
 
-      ##return the wide tidydata
-      mean_std_mean
+      ##tidy the data a bit, make it not so wide
+      tidy_msm<-gather(mean_std_mean,"action_function","measurement",
+                                 -subject_id,-activity)
+      tidy_msm<-mutate(tidy_msm,action_function=sub("()-","*",action_function))
+      tidy_msm<-separate(tidy_msm,"action_function",
+                         c("action","function"),sep="\\*")
+      
+      ##add columns for time/frequency...if i had time would
+      ##try to use chaining for sure
+      tidy_msm<-mutate(tidy_msm, measure_type = substring(action,1,1))
+      tidy_msm<-mutate(tidy_msm,action=substring(action,2,length(action)))
+      tidy_msm<-mutate(tidy_msm,
+                       measure_type=sub("t","time_in_sec",measure_type))
+      tidy_msm<-mutate(tidy_msm,
+                       measure_type=sub("f","freq_in_hz",measure_type))
+      tidy_msm<-spread(tidy_msm,measure_type,measurement)
+      
+      tidy_msm
+      
       
 }
 
